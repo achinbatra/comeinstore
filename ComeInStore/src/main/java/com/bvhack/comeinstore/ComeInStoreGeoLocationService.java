@@ -73,7 +73,7 @@ public class ComeInStoreGeoLocationService extends Service implements LocationLi
 
   public static void updateLocation(Location location)
   {
-    Context appCtx = ItemListActivity.getContext();
+    Context appCtx = MainActivity.getContext();
 
     double latitude, longitude;
 
