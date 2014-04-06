@@ -24,9 +24,7 @@ import org.apache.http.util.EntityUtils;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public class LocationReceiver extends BroadcastReceiver {
 
@@ -34,7 +32,12 @@ public class LocationReceiver extends BroadcastReceiver {
   private static final String TEASER_KEY = "teaser";
   private static final String ACTUAL_KEY = "actual";
   private Context APP_CONTEXT;
-  private int mId;
+  private static int count = 0;
+
+  private static boolean seenTeaser = false;
+  private static boolean seenActual = false;
+
+  private static long teaserSentMillis;
 
   final static Type listType = new TypeToken<ArrayList<CampaignBean>>() {
   }.getType();
@@ -101,52 +104,63 @@ public class LocationReceiver extends BroadcastReceiver {
   }
 
   private void persistAndSendNotification(List<CampaignBean> campaignBeans) {
+
     for (CampaignBean campaignBean : campaignBeans) {
-      Set<String> teaserRetailerSet = getSharedPreferences().getStringSet(TEASER_KEY, null);
-      Set<String> actualRetailerSet = getSharedPreferences().getStringSet(ACTUAL_KEY, null);
-      if(teaserRetailerSet == null) {
-        teaserRetailerSet = new HashSet<String>();
-      }
-      if(actualRetailerSet == null) {
-        actualRetailerSet = new HashSet<String>();
-      }
-      SharedPreferences.Editor editor = getSharedPreferences().edit();
-
-      if (campaignBean.isTeaser()) {
-        if (teaserRetailerSet.contains(campaignBean.getRetailer())) {
-          //Already contains retailer - dont do anything
-          return;
-        } else if (actualRetailerSet.contains(campaignBean.getRetailer())) {
-          actualRetailerSet.remove(campaignBean.getRetailer());
-          editor.putStringSet(ACTUAL_KEY, actualRetailerSet);
-          editor.commit();
-        }
-
-        teaserRetailerSet.add(campaignBean.getRetailer());
-        editor.putStringSet(TEASER_KEY, teaserRetailerSet);
-        editor.commit();
+      if(campaignBean.isTeaser() && !seenTeaser && !seenActual) {
         sendCampaignNotification(campaignBean);
+        seenTeaser = true;
+        teaserSentMillis = System.currentTimeMillis();
+      }
+      else if(!campaignBean.isTeaser() && !seenActual && seenTeaser && (teaserSentMillis + 30000 > System.currentTimeMillis())) {
+        sendCampaignNotification(campaignBean);
+        seenActual = true;
       }
 
-      if (!campaignBean.isTeaser()) {
-        if (teaserRetailerSet.contains(campaignBean.getRetailer())) {
-          teaserRetailerSet.remove(campaignBean.getRetailer());
-          editor.putStringSet(TEASER_KEY, actualRetailerSet);
-          editor.commit();
-
-          actualRetailerSet.add(campaignBean.getRetailer());
-          editor.putStringSet(ACTUAL_KEY, actualRetailerSet);
-          editor.commit();
-          sendCampaignNotification(campaignBean);
-        }
-
-        if(teaserRetailerSet.isEmpty() && !actualRetailerSet.contains(campaignBean.getRetailer())) {
-          actualRetailerSet.add(campaignBean.getRetailer());
-          editor.putStringSet(ACTUAL_KEY, actualRetailerSet);
-          editor.commit();
-          sendCampaignNotification(campaignBean);
-        }
-      }
+//      Set<String> teaserRetailerSet = getSharedPreferences().getStringSet(TEASER_KEY, null);
+//      Set<String> actualRetailerSet = getSharedPreferences().getStringSet(ACTUAL_KEY, null);
+//      if(teaserRetailerSet == null) {
+//        teaserRetailerSet = new HashSet<String>();
+//      }
+//      if(actualRetailerSet == null) {
+//        actualRetailerSet = new HashSet<String>();
+//      }
+//      SharedPreferences.Editor editor = getSharedPreferences().edit();
+//
+//      if (campaignBean.isTeaser()) {
+//        if (teaserRetailerSet.contains(campaignBean.get_id())) {
+//          Already contains retailer - dont do anything
+//          return;
+//        } else if (actualRetailerSet.contains(campaignBean.get_id())) {
+//          actualRetailerSet.remove(campaignBean.get_id());
+//          editor.putStringSet(ACTUAL_KEY, actualRetailerSet);
+//          editor.commit();
+//        }
+//
+//        teaserRetailerSet.add(campaignBean.get_id());
+//        editor.putStringSet(TEASER_KEY, teaserRetailerSet);
+//        editor.commit();
+//        sendCampaignNotification(campaignBean);
+//      }
+//
+//      if (!campaignBean.isTeaser()) {
+//        if (teaserRetailerSet.contains(campaignBean.get_id())) {
+//          teaserRetailerSet.remove(campaignBean.get_id());
+//          editor.putStringSet(TEASER_KEY, actualRetailerSet);
+//          editor.commit();
+//
+//          actualRetailerSet.add(campaignBean.get_id());
+//          editor.putStringSet(ACTUAL_KEY, actualRetailerSet);
+//          editor.commit();
+//          sendCampaignNotification(campaignBean);
+//        }
+//
+//        if(teaserRetailerSet.isEmpty() && !actualRetailerSet.contains(campaignBean.get_id())) {
+//          actualRetailerSet.add(campaignBean.get_id());
+//          editor.putStringSet(ACTUAL_KEY, actualRetailerSet);
+//          editor.commit();
+//          sendCampaignNotification(campaignBean);
+//        }
+//      }
     }
   }
 
@@ -154,9 +168,11 @@ public class LocationReceiver extends BroadcastReceiver {
 
     NotificationCompat.Builder mBuilder =
         new NotificationCompat.Builder(APP_CONTEXT)
-            .setSmallIcon(R.drawable.notification_icon)
+            .setSmallIcon(R.drawable.bvicon)
             .setContentTitle(String.format("New Deal At: %s!", campaignBean.getRetailer()))
-            .setContentText(String.format("Click to see deal at: %s!", campaignBean.getRetailer()));
+            .setContentText(String.format("Click to see deal at: %s!", campaignBean.getRetailer()))
+            .setAutoCancel(true);
+
 
     Intent resultIntent = new Intent(APP_CONTEXT, MainActivity.class);
     resultIntent.putExtra("name", campaignBean.getName());
@@ -175,14 +191,14 @@ public class LocationReceiver extends BroadcastReceiver {
     stackBuilder.addNextIntent(resultIntent);
     PendingIntent resultPendingIntent =
         stackBuilder.getPendingIntent(
-            0,
+            campaignBean.get_id().hashCode(),
             PendingIntent.FLAG_UPDATE_CURRENT
         );
     mBuilder.setContentIntent(resultPendingIntent);
     NotificationManager mNotificationManager =
         (NotificationManager) APP_CONTEXT.getSystemService(Context.NOTIFICATION_SERVICE);
 // mId allows you to update the notification later on.
-    mNotificationManager.notify(mId, mBuilder.build());
+    mNotificationManager.notify(campaignBean.get_id().hashCode(), mBuilder.build());
   }
 
   private SharedPreferences getSharedPreferences() {

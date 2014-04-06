@@ -51,6 +51,7 @@ public class MainActivity extends Activity {
 
 
     ImageView imgView = (ImageView) findViewById(R.id.myimg);
+    ImageView macysbath = (ImageView) findViewById(R.id.macysbath);
     TextView txtView = (TextView) findViewById(R.id.discount_text);
 
     Typeface myTypeface = Typeface.createFromAsset(
@@ -59,22 +60,36 @@ public class MainActivity extends Activity {
 
     txtView.setTypeface(myTypeface);
     Button button = (Button) findViewById(R.id.goToMap);
+    Button redeemButton = (Button) findViewById(R.id.redeem);
 
     if(isTeaser) {
-      button.setVisibility(View.VISIBLE);
+      redeemButton.setVisibility(View.GONE);
       txtView.setText("Secret Coupon! Come to store below!");
     } else {
-      button.setVisibility(View.GONE);
-      txtView.setText("Welcome to " + name + "! You win " + discountPct + "% discount!");
+      redeemButton.setVisibility(View.VISIBLE);
+      txtView.setText("Welcome to " + name + "! You unlock " + discountPct + "% discount!");
+    }
+    if(retailerLongName == null) {
+      retailerLongName = "Macy's - North Austin";
     }
     button.setText(retailerLongName);
-
 
     if(name == null) {
       button.setVisibility(View.GONE);
       txtView.setVisibility(View.GONE);
       imgView.setVisibility(View.GONE);
+      redeemButton.setVisibility(View.GONE);
+      macysbath.setVisibility(View.GONE);
     }
+
+    redeemButton.setOnClickListener(new View.OnClickListener() {
+      @Override
+      public void onClick(View v) {
+        Intent intent = new Intent(MainActivity.this, RedeemActivity.class);
+        startActivity(intent);
+      }
+    });
+
     button.setOnClickListener(new View.OnClickListener() {
       @Override
       public void onClick(View v) {
